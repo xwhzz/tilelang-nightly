@@ -11,7 +11,7 @@ base_url = "https://github.com/tile-ai/tilelang-nightly/releases/download"
 pattern = re.compile(
     r"tilelang-"
     r"((\d+\.)+\d+(?:\.post\d+)?)"
-    r"(?:\+([a-f0-9]+))?"        
+    r"(?:\+([a-z0-9]+))?"        
     r".*?\.cu(\d+)"                
 )
 base_path = "tilelang-whl/nightly"
