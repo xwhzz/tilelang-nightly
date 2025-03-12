@@ -15,7 +15,7 @@ install_cmake="wget https://github.com/Kitware/CMake/releases/download/v3.28.4/c
 
 install_pip="python3.8 -m pip install  --upgrade pip && python3.8 -m pip install -r requirements-build.txt"
 
-run_command="python3.8 -m tox -e py310 && chown -R \${HOST_UID}:\${HOST_GID} /tilelang"
+run_command="python3.8 -m tox -e py38,py39,py310,py311,py312 && chown -R \${HOST_UID}:\${HOST_GID} /tilelang"
 
 docker run --rm -v $(pwd):/tilelang \
   -e HOST_UID=$(id -u) \
