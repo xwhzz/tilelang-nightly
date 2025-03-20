@@ -1,0 +1,118 @@
+name: Nightly-Release-Windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: "repo"
+        default: "tile-ai/tilelang"
+      branch:
+        description: "branch"
+        default: "main"
+
+jobs:
+  build:
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+    runs-on: [self-hosted, Windows]
+    defaults:
+      run:
+        shell: pwsh
+        
+    steps:
+      - name: Clean workspace
+        run: Remove-Item -Recurse -Force tilelang -ErrorAction SilentlyContinue
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set default values
+        id: set_defaults
+        run: |
+          Write-Output "[INFO] Event name is '${{ github.event_name }}'"
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            "REPO=${{ inputs.repo }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "BRANCH=${{ inputs.branch }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+          }
+          elseif ("${{ github.event_name }}" -eq "schedule") {
+            "REPO=tile-ai/tilelang" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "BRANCH=main" | Out-File -FilePath $env:GITHUB_ENV -Append
+          }
+          else {
+            Write-Error "[ERROR] Unsupported event '${{ github.event_name }}'."
+            exit 1
+          }
+
+      - name: Clone and prepare
+        id: get_version
+        run: |
+          git clone -b $env:BRANCH --recursive https://github.com/$env:REPO
+          Set-Location tilelang
+          
+          $commitHash = (git rev-parse HEAD).Substring(0,7)
+          $version = (Get-Content VERSION) + "+" + $commitHash
+          
+
+          $setupContent = Get-Content setup.py -Raw
+          $setupContent = $setupContent -replace 'return version', "return '${version}'"
+          $setupContent = $setupContent -replace '= f"\+', '= f".'
+          $setupContent | Set-Content setup.py
+          
+          "VERSION=${version}" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "version=${version}" >> $env:GITHUB_OUTPUT
+
+      - name: Build wheel
+        run: |
+          Set-Location tilelang
+          ..\build.ps1
+          Set-Location ..
+
+      - name: Show artifacts
+        run: Get-ChildItem tilelang/dist/* | ForEach-Object { Write-Output "$($_.FullName) $($_.Length/1KB) KB" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-win
+          path: tilelang/dist/*.whl
+
+  release:
+    needs: build
+    runs-on: [self-hosted, Windows]
+    defaults:
+      run:
+        shell: pwsh
+        
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: $true
+          pattern: wheel*
+
+      - name: Filter artifacts
+        run: |
+          $tagVersion = "${{ needs.build.outputs.version }}"
+          Get-ChildItem dist/* | Where-Object { $_.Name -notmatch $tagVersion } | Remove-Item -Force
+
+      - uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.build.outputs.version }}
+          files: dist/*
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clone wheel index
+        run: git clone https://github.com/tile-ai/whl.git tilelang-whl
+
+      - name: Update wheel index
+        run: python update_whl_index.py 
+
+      - name: Push wheel index
+        run: |
+          Set-Location tilelang-whl
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "update nightly whl (windows)"
+          git push "https://$($env:WHL_TOKEN)@github.com/tile-ai/whl.git" main
+        env:
+          WHL_TOKEN: ${{ secrets.WHL_TOKEN }}

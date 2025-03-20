@@ -76,11 +76,11 @@ for index_dir in pathlib.Path("tilelang-whl").iterdir():
         if index_dir.name[0] != '.':
             dir_list.append(index_dir.name)
 dir_list.sort()
-with open("tilelang-whl/index.html", "w") as f:
+with (pathlib.Path("tilelang-whl") / "index.html").open("w") as f:
     f.write(
         """<!DOCTYPE html>
 <h1>TileLang Python Wheels</h1>\n"""
     )
 for dir_name in dir_list:
-    with open("tilelang-whl/index.html", "a") as f:
+    with (pathlib.Path("tilelang-whl") / "index.html").open("a") as f:
         f.write(f'<a href="{dir_name}/">{dir_name}</a><br>\n')   

@@ -16,7 +16,7 @@ jobs:
   build:
     outputs:
       version: ${{ steps.get_version.outputs.version }}
-    runs-on: [self-hosted]
+    runs-on: [self-hosted, Linux]
     steps:
       - run: rm -rf tilelang
 
@@ -59,7 +59,7 @@ jobs:
 
   release:
     needs: build
-    runs-on: [self-hosted]
+    runs-on: [self-hosted, Linux]
     steps:
       - uses: actions/download-artifact@v4
         with:
