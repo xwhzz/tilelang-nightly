@@ -60,14 +60,13 @@ for path in sorted(pathlib.Path("dist").glob("*.whl")):
                     f"""<!DOCTYPE html>
     <h1>TileLang{vvver} Python Wheels for CUDA {cuda_version}</h1>\n"""
                 )
+            with (pathlib.Path(base_path) / "index.html").open("a+") as f:
+                f.write(
+                    f'<a href="cu{cuda_version}/">cu{cuda_version}</a><br>'
+                )
             dir_set.add(cuda_version)
         with (index_dir / "index.html").open("a") as f:
             f.write(f'<a href="{full_url}">{path.name}</a><br>\n')
-    
-with (pathlib.Path(base_path) / "index.html").open("a+") as f:
-    f.write(
-        f'<a href="cu{cuda_version}/">cu{cuda_version}</a><br>'
-    )
 
 dir_list = []
 
