@@ -33,6 +33,7 @@ for index_dir in pathlib.Path(base_path).glob(star):
     if index_dir.is_dir():
         os.system(f"rm -rf {index_dir}")
 dir_set = set()
+cuda_versions = list(range(121, 129))
 for path in sorted(pathlib.Path("dist").glob("*.whl")):
         with open(path, "rb") as f:
             sha256 = hashlib.sha256(f.read()).hexdigest()
@@ -40,7 +41,7 @@ for path in sorted(pathlib.Path("dist").glob("*.whl")):
         if match:
             base_version = match.group(1)
             commit_hash = match.group(3) or "" 
-            cuda_version = match.group(4)  
+            # cuda_version = match.group(4)  
 
             full_version = base_version
             if commit_hash:
@@ -48,25 +49,26 @@ for path in sorted(pathlib.Path("dist").glob("*.whl")):
 
         else:
             continue
-        index_dir = pathlib.Path(f"{base_path}/cu{cuda_version}")
-        index_dir.mkdir(exist_ok=True)
-        ver = full_version.replace("+", "%2B")
-        if args.mode != "nightly":
-            ver = 'v' + ver
-        full_url = f"{base_url}/{ver}/{path.name}#sha256={sha256}"
-        if cuda_version not in dir_set:
-            with (index_dir / "index.html").open("w") as f:
-                f.write(
-                    f"""<!DOCTYPE html>
+        for cuda_version in cuda_versions:
+            index_dir = pathlib.Path(f"{base_path}/cu{cuda_version}")
+            index_dir.mkdir(exist_ok=True)
+            ver = full_version.replace("+", "%2B")
+            if args.mode != "nightly":
+                ver = 'v' + ver
+            full_url = f"{base_url}/{ver}/{path.name}#sha256={sha256}"
+            if cuda_version not in dir_set:
+                with (index_dir / "index.html").open("w") as f:
+                    f.write(
+                        f"""<!DOCTYPE html>
     <h1>TileLang{vvver} Python Wheels for CUDA {cuda_version}</h1>\n"""
                 )
-            with (pathlib.Path(base_path) / "index.html").open("a+") as f:
-                f.write(
-                    f'<a href="cu{cuda_version}/">cu{cuda_version}</a><br>'
-                )
-            dir_set.add(cuda_version)
-        with (index_dir / "index.html").open("a") as f:
-            f.write(f'<a href="{full_url}">{path.name}</a><br>\n')
+                with (pathlib.Path(base_path) / "index.html").open("a+") as f:
+                    f.write(
+                        f'<a href="cu{cuda_version}/">cu{cuda_version}</a><br>'
+                    )
+                dir_set.add(cuda_version)
+            with (index_dir / "index.html").open("a") as f:
+                f.write(f'<a href="{full_url}">{path.name}</a><br>\n')
 
 dir_list = []
 

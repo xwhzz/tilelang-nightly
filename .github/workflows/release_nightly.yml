@@ -68,18 +68,6 @@ jobs:
           merge-multiple: true
           pattern: wheel*
       - run: |
-          ls -lah dist/
-          pushd dist
-          source_files=($(du -h ./* 2>/dev/null | awk '{print $NF}' | grep -v '^total'))
-          cuda_versions=(122 123 124 125 126 127 128)
-          for src_file in "${source_files[@]}"; do
-            for cuda in "${cuda_versions[@]}"; do
-              new_file=$(sed -E "s/cu[0-9]+/cu${cuda}/g" <<< "$src_file")
-              cp "$src_file" "$new_file"
-            done
-          done
-          popd
-      - run: |
           version="${{ needs.build.outputs.version }}"
           tag_version=$version
           echo "TAG_VERSION=$tag_version" >> $GITHUB_ENV
