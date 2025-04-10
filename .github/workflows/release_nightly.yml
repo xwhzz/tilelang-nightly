@@ -50,6 +50,7 @@ jobs:
       - name: Build wheel
         run: |
           pushd tilelang
+          bash ../build_118.sh
           bash ../build.sh
           popd
       - run: du -h tilelang/wheelhouse/*
