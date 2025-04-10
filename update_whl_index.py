@@ -43,7 +43,6 @@ for path in sorted(pathlib.Path("dist").glob("*.whl")):
             base_version = match.group(1)
             commit_hash = match.group(3) or "" 
             cuda_version_ = match.group(4)  
-
             full_version = base_version
             if commit_hash:
                 full_version += "+" + commit_hash
@@ -51,8 +50,8 @@ for path in sorted(pathlib.Path("dist").glob("*.whl")):
         else:
             continue
         for cuda_version in cuda_versions:
-            if cuda_version_ == 118:
-                cuda_version = 118
+            if cuda_version_ == "118":
+                cuda_version = "118"
             index_dir = pathlib.Path(f"{base_path}/cu{cuda_version}")
             index_dir.mkdir(exist_ok=True)
             ver = full_version.replace("+", "%2B")
@@ -72,7 +71,7 @@ for path in sorted(pathlib.Path("dist").glob("*.whl")):
                 dir_set.add(cuda_version)
             with (index_dir / "index.html").open("a") as f:
                 f.write(f'<a href="{full_url}">{path.name}</a><br>\n')
-            if cuda_version == 118:
+            if cuda_version == "118":
                 break
 
 dir_list = []
