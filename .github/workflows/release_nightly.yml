@@ -51,6 +51,7 @@ jobs:
         run: |
           pushd tilelang
           bash ../build_118.sh
+          rm -rf dist
           bash ../build.sh
           popd
       - run: du -h tilelang/wheelhouse/*
