@@ -3,7 +3,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-IMAGE=docker-0.unsee.tech/nvidia/cuda:12.1.0-devel-ubuntu18.04
+IMAGE=nvidia/cuda:12.1.0-devel-ubuntu18.04
 
 docker pull ${IMAGE}
 
