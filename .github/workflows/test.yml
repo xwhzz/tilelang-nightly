@@ -14,21 +14,15 @@ on:
 
 jobs:
   release:
-    runs-on: [self-hosted]
+    runs-on: [ubuntu-latest]
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - run: |
           mkdir -p dist
-          wget -P dist/ https://github.com/tile-ai/tilelang-nightly/releases/download/0.1.1%2Bfe02922/tilelang-0.1.1+fe02922.ubuntu.18.4.cu121-cp39-cp39-linux_x86_64.whl
+          wget -O wheel.zip "https://productionresultssa0.blob.core.windows.net/actions-results/fa2429d2-3952-4e77-b620-b7d305a377bd/workflow-job-run-ecd919db-3234-565e-8a3a-ff9c5477058b/artifacts/ba59926159d2aa256eb8739b8da7e2b574b960e1202c6d624cbe981cef996c91.zip?rscd=attachment%3B+filename%3D%22wheel.zip%22&se=2025-04-21T13%3A52%3A54Z&sig=anXAq4FbNWleWeG8NyDM4eMfK9krGCic%2FsQ4Llo6HgI%3D&ske=2025-04-21T22%3A22%3A29Z&skoid=ca7593d4-ee42-46cd-af88-8b886a2f84eb&sks=b&skt=2025-04-21T10%3A22%3A29Z&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skv=2025-01-05&sp=r&spr=https&sr=b&st=2025-04-21T13%3A42%3A49Z&sv=2025-01-05"
+          unzip wheel.zip -d dist/
       - run: ls -lah dist/
-      - run: |
-          tag_version=0.1.1+fe02922
-          echo "TAG_VERSION=$tag_version" >> $GITHUB_ENV
-          find dist -type f ! -name "*${tag_version}*" -delete
-      - uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ env.TAG_VERSION }}
-          files: dist/*
-          token: ${{ secrets.GITHUB_TOKEN }} 
       - name: Clone wheel index
         run: git clone https://$WHL_TOKEN@github.com/tile-ai/whl.git tilelang-whl
         env:
