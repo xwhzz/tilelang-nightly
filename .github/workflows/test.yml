@@ -9,6 +9,8 @@ on:
       branch:
         description: "branch"
         default: "main"
+      link:
+        description: "download link"
   # schedule:
   #   - cron: '0 2 * * *'
 
@@ -20,7 +22,7 @@ jobs:
         uses: actions/checkout@v4
       - run: |
           mkdir -p dist
-          wget -O wheel.zip "https://productionresultssa0.blob.core.windows.net/actions-results/fa2429d2-3952-4e77-b620-b7d305a377bd/workflow-job-run-ecd919db-3234-565e-8a3a-ff9c5477058b/artifacts/ba59926159d2aa256eb8739b8da7e2b574b960e1202c6d624cbe981cef996c91.zip?rscd=attachment%3B+filename%3D%22wheel.zip%22&se=2025-04-21T13%3A52%3A54Z&sig=anXAq4FbNWleWeG8NyDM4eMfK9krGCic%2FsQ4Llo6HgI%3D&ske=2025-04-21T22%3A22%3A29Z&skoid=ca7593d4-ee42-46cd-af88-8b886a2f84eb&sks=b&skt=2025-04-21T10%3A22%3A29Z&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skv=2025-01-05&sp=r&spr=https&sr=b&st=2025-04-21T13%3A42%3A49Z&sv=2025-01-05"
+          wget -O wheel.zip "${{ inputs.link }}"
           unzip wheel.zip -d dist/
       - run: ls -lah dist/
       - name: Clone wheel index
