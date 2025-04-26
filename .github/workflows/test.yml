@@ -11,6 +11,8 @@ on:
         default: "main"
       link:
         description: "download link"
+      version:
+        description: "release version"
   # schedule:
   #   - cron: '0 2 * * *'
 
@@ -25,6 +27,13 @@ jobs:
           wget -O wheel.zip "${{ inputs.link }}"
           unzip wheel.zip -d dist/
       - run: ls -lah dist/
+      
+      - uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ inputs.version }}
+          files: dist/*
+          token: ${{ secrets.GITHUB_TOKEN }} 
+      
       - name: Clone wheel index
         run: git clone https://$WHL_TOKEN@github.com/tile-ai/whl.git tilelang-whl
         env:
