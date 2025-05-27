@@ -41,8 +41,9 @@ jobs:
           git clone -b ${{ env.BRANCH }} --recursive https://github.com/${{ env.REPO }}
           pushd tilelang
           version="$(cat VERSION)+$(git rev-parse HEAD | cut -c1-7)"
-          sed -i "0,/return version/ s#return version#return '${version}'#" setup.py
-          sed -i 's/= f"+/= f"./' setup.py
+          sed -i "s/find_version(get_path(\".\", \"VERSION\"))/'${version}'/" setup.py
+          sed -i "/if with_commit_id:/s/with_commit_id/False/" setup.py
+          sed -i "0,/version += f\"+/s/\"+/\"./" setup.py
           sed -i "s/--exclude=libcuda.so.1/--exclude=libcuda.so.1 --exclude=libcudart* --exclude=libnvrtc*/" tox.ini
           echo "VERSION=$version" >> $GITHUB_ENV
           echo "version=$version" >> $GITHUB_OUTPUT
