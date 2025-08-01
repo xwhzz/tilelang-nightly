@@ -44,7 +44,7 @@ jobs:
           sed -i "s/find_version(get_path(\".\", \"VERSION\"))/'${version}'/" setup.py
           sed -i "/if with_commit_id:/s/with_commit_id/False/" setup.py
           sed -i "0,/version += f\"+/s/\"+/\"./" setup.py
-          sed -i "s/--exclude=libcuda.so.1/--exclude=libcuda.so.1 --exclude=libnvrtc.so.11 --exclude=libcudart.so.11 --exclude=libnvrtc.so.12 --exclude=libcudart.so.12/" tox.ini
+          sed -i "s/--exclude=libcuda.so.1 --plat=manylinux_2_27_x86_64/--exclude=libcuda.so.1 --exclude=libnvrtc.so.11 --exclude=libcudart.so.11 --exclude=libnvrtc.so.12 --exclude=libcudart.so.12 --plat=manylinux_2_35_x86_64/" tox.ini
           sed -i "s/numpy>=1.23.5/numpy>=1.23.5,<2.3.0/" requirements.txt
           echo "VERSION=$version" >> $GITHUB_ENV
           echo "version=$version" >> $GITHUB_OUTPUT
