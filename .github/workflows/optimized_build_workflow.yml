@@ -107,8 +107,8 @@ jobs:
           CIBW_ENVIRONMENT: |
             CUDA_VERSION=${{ matrix.cuda-version }}
             CUDACXX=/usr/local/cuda-${{ matrix.cuda-version }}/bin/nvcc
-            CC=gcc-11
-            CXX=g++-11
+            CC=/opt/rh/gcc-toolset-11/root/usr/bin/cc
+            CXX=/opt/rh/gcc-toolset-11/root/usr/bin/c++
             http_proxy=http://10.129.167.171:7897
             https_proxy=http://10.129.167.171:7897
             
