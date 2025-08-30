@@ -119,6 +119,10 @@ jobs:
             export http_proxy=http://10.129.167.171:7897 https_proxy=http://10.129.167.171:7897
             dnf update -y
             dnf install -y wget curl
+
+            mkdir -p /etc
+            echo "[global]" > /etc/pip.conf
+            echo "proxy = http://10.129.167.171:7897" >> /etc/pip.conf
             
             # read github actions env
             CUDA_CACHE_DIR=${{ env.CUDA_CACHE_DIR }}
@@ -154,9 +158,7 @@ jobs:
               --plat manylinux_2_28_x86_64
               
         working-directory: tilelang
-        run: | 
-          export http_proxy=http://10.129.167.171:7897 https_proxy=http://10.129.167.171:7897
-          python -m cibuildwheel --output-dir ../wheelhouse
+        run: python -m cibuildwheel --output-dir ../wheelhouse
 
       - name: Upload wheels as artifacts
         uses: actions/upload-artifact@v4
