@@ -154,7 +154,9 @@ jobs:
               --plat manylinux_2_28_x86_64
               
         working-directory: tilelang
-        run: python -m cibuildwheel --output-dir ../wheelhouse
+        run: | 
+          export http_proxy=http://10.129.167.171:7897 https_proxy=http://10.129.167.171:7897
+          python -m cibuildwheel --output-dir ../wheelhouse
 
       - name: Upload wheels as artifacts
         uses: actions/upload-artifact@v4
