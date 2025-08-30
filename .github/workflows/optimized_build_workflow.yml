@@ -83,7 +83,7 @@ jobs:
             https_proxy=http://10.129.167.171:7897
             
           # Install CUDA in the manylinux_2_28 environment
-          CIBW_BEFORE_ALL_LINUX: |
+          CIBW_BEFORE_BUILD: |
             # Update system and install dependencies
             dnf update -y
             dnf install -y wget curl
