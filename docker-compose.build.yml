@@ -1,0 +1,72 @@
+# Docker Compose for efficient multi-CUDA version builds
+# This provides clean isolation and eliminates host system dependencies
+
+version: '3.8'
+
+services:
+  # CUDA 11.8 build environment
+  build-cuda118:
+    build:
+      context: .
+      dockerfile: Dockerfile.cuda-build
+      args:
+        CUDA_VERSION: "11.8"
+        MANYLINUX_IMAGE: "quay.io/pypa/manylinux_2_28_x86_64"
+    volumes:
+      - ./tilelang:/workspace:ro
+      - ./wheelhouse-118:/workspace/wheelhouse
+    environment:
+      - CUDA_VERSION=11.8
+    command: /usr/local/bin/build-wheels.sh
+
+  # CUDA 12.1 build environment  
+  build-cuda121:
+    build:
+      context: .
+      dockerfile: Dockerfile.cuda-build
+      args:
+        CUDA_VERSION: "12.1"
+        MANYLINUX_IMAGE: "quay.io/pypa/manylinux_2_28_x86_64"
+    volumes:
+      - ./tilelang:/workspace:ro
+      - ./wheelhouse-121:/workspace/wheelhouse
+    environment:
+      - CUDA_VERSION=12.1
+    command: /usr/local/bin/build-wheels.sh
+
+  # CUDA 12.4 build environment
+  build-cuda124:
+    build:
+      context: .
+      dockerfile: Dockerfile.cuda-build
+      args:
+        CUDA_VERSION: "12.4"
+        MANYLINUX_IMAGE: "quay.io/pypa/manylinux_2_28_x86_64"
+    volumes:
+      - ./tilelang:/workspace:ro
+      - ./wheelhouse-124:/workspace/wheelhouse
+    environment:
+      - CUDA_VERSION=12.4
+    command: /usr/local/bin/build-wheels.sh
+
+  # Merge and test wheels
+  merge-wheels:
+    image: python:3.11-slim
+    depends_on:
+      - build-cuda118
+      - build-cuda121
+      - build-cuda124
+    volumes:
+      - ./wheelhouse-118:/input/cuda118:ro
+      - ./wheelhouse-121:/input/cuda121:ro
+      - ./wheelhouse-124:/input/cuda124:ro
+      - ./final-wheelhouse:/output
+    command: |
+      bash -c "
+        mkdir -p /output
+        cp /input/cuda118/* /output/ 2>/dev/null || true
+        cp /input/cuda121/* /output/ 2>/dev/null || true
+        cp /input/cuda124/* /output/ 2>/dev/null || true
+        echo 'Merged wheels:'
+        ls -la /output/
+      "

@@ -1,0 +1,44 @@
+# Multi-stage Dockerfile for efficient CUDA + Python wheel building
+# Optimized for manylinux_2_28 with native GCC-13 (excellent C++17 support)
+
+ARG CUDA_VERSION=12.1
+ARG MANYLINUX_IMAGE=quay.io/pypa/manylinux_2_28_x86_64
+
+# Stage 1: CUDA development environment
+FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu20.04 as cuda-builder
+
+# Install basic tools
+RUN apt-get update && \
+    apt-get install -y git wget curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Stage 2: Python wheel building environment (manylinux_2_28 with GCC-13)
+FROM ${MANYLINUX_IMAGE} as wheel-builder
+
+# Copy CUDA installation from previous stage
+COPY --from=cuda-builder /usr/local/cuda /usr/local/cuda
+
+# manylinux_2_28 comes with GCC-13 which has excellent C++17 support
+# No need to install additional compilers!
+
+# Set up environment for manylinux_2_28 with native GCC-13
+ENV PATH=/usr/local/cuda/bin:$PATH
+ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+ENV CC=gcc
+ENV CXX=g++
+ENV CUDACXX=/usr/local/cuda/bin/nvcc
+ENV CXXFLAGS="-std=c++17"
+
+# Install Python build tools for all versions
+RUN for py_ver in cp38-cp38 cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312; do \
+        /opt/python/${py_ver}/bin/pip install --upgrade pip setuptools wheel && \
+        /opt/python/${py_ver}/bin/pip install Cython numpy; \
+    done
+
+# Build script that works with any Python version
+COPY build-wheels.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/build-wheels.sh
+
+WORKDIR /workspace
+CMD ["/usr/local/bin/build-wheels.sh"]
