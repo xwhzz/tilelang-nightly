@@ -1,0 +1,10 @@
+# Minimal build requirements for TileLang (no heavy dependencies like torch/tox)
+setuptools>=61
+wheel
+Cython
+numpy>=1.23.5,<2.3.0
+cmake>=3.26
+ninja
+packaging
+patchelf
+auditwheel

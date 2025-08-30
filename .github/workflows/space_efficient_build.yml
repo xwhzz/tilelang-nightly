@@ -1,0 +1,224 @@
+name: Space-Efficient-Build-Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: "Repository"
+        default: "tile-ai/tilelang"
+      branch:
+        description: "Branch"
+        default: "main"
+  schedule:
+    - cron: '0 19 * * *'
+
+env:
+  FORCE_COLOR: 1
+
+jobs:
+  build-wheels:
+    name: Build wheels CUDA ${{ matrix.cuda-version }} Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cuda-version: ["11.8", "12.1", "12.4"]
+        python-version: ["38", "39", "310", "311", "312"]
+        
+    steps:
+      - name: Maximize build space
+        run: |
+          echo "Available space before cleanup:"
+          df -h
+          # Remove unnecessary software to free up space
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /opt/hostedtoolcache/go
+          sudo rm -rf /opt/hostedtoolcache/node
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          # Clean Docker
+          sudo docker system prune -af --volumes
+          # Clean apt cache
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          echo "Available space after cleanup:"
+          df -h
+          
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set default values
+        id: set_defaults
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "REPO=${{ inputs.repo }}" >> $GITHUB_ENV
+            echo "BRANCH=${{ inputs.branch }}" >> $GITHUB_ENV
+          else
+            echo "REPO=tile-ai/tilelang" >> $GITHUB_ENV
+            echo "BRANCH=main" >> $GITHUB_ENV
+          fi
+
+      - name: Clone and prepare source
+        run: |
+          rm -rf tilelang
+          git clone -b ${{ env.BRANCH }} --recursive https://github.com/${{ env.REPO }}
+          cd tilelang
+          
+          # Generate version with commit hash
+          version="$(cat VERSION)+$(git rev-parse HEAD | cut -c1-7)"
+          echo "VERSION=$version" >> $GITHUB_ENV
+          
+          # Update setup.py for nightly build
+          sed -i "s/find_version(get_path(\".\", \"VERSION\"))/'${version}'/" setup.py
+          sed -i "/if with_commit_id:/s/with_commit_id/False/" setup.py
+          sed -i "0,/version += f\"+/s/\"+/\"./" setup.py
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Build wheel directly with Docker
+        run: |
+          # Create a custom minimal build script
+          cat > build_single_wheel.py << 'EOF'
+          #!/usr/bin/env python3
+          import subprocess
+          import sys
+          import os
+          
+          def run_cmd(cmd):
+              print(f"Running: {cmd}")
+              result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+              if result.returncode != 0:
+                  print(f"Error: {result.stderr}")
+                  sys.exit(1)
+              return result.stdout
+          
+          # Build with minimal dependencies
+          python_ver = "${{ matrix.python-version }}"
+          cuda_ver = "${{ matrix.cuda-version }}"
+          
+          # Use the manylinux_2_28 image directly
+          docker_cmd = f"""
+          docker run --rm -v $(pwd):/workspace quay.io/pypa/manylinux_2_28_x86_64 bash -c "
+            set -e
+            cd /workspace/tilelang
+            
+            # Install CUDA {cuda_ver} (minimal)
+            dnf install -y wget
+            if [ '{cuda_ver}' = '11.8' ]; then
+              wget -q https://developer.download.nvidia.com/compute/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run
+              sh cuda_11.8.0_520.61.05_linux.run --toolkit --silent --override --no-man-page
+              rm cuda_11.8.0_520.61.05_linux.run
+            elif [ '{cuda_ver}' = '12.1' ]; then
+              wget -q https://developer.download.nvidia.com/compute/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run
+              sh cuda_12.1.0_530.30.02_linux.run --toolkit --silent --override --no-man-page  
+              rm cuda_12.1.0_530.30.02_linux.run
+            elif [ '{cuda_ver}' = '12.4' ]; then
+              wget -q https://developer.download.nvidia.com/compute/cuda/12.4.0/local_installers/cuda_12.4.0_550.54.14_linux.run
+              sh cuda_12.4.0_550.54.14_linux.run --toolkit --silent --override --no-man-page
+              rm cuda_12.4.0_550.54.14_linux.run
+            fi
+            
+            # Clean CUDA install
+            rm -rf /usr/local/cuda/doc /usr/local/cuda/samples
+            find /usr/local/cuda -name '*.a' -delete
+            
+            # Set environment
+            export PATH=/usr/local/cuda/bin:\$PATH
+            export LD_LIBRARY_PATH=/usr/local/cuda/lib64:\$LD_LIBRARY_PATH
+            export CC=gcc CXX=g++ CUDACXX=nvcc CXXFLAGS='-std=c++17'
+            
+            # Install minimal Python dependencies
+            /opt/python/cp{python_ver}-cp{python_ver}/bin/pip install --no-cache-dir setuptools wheel Cython numpy cmake ninja packaging
+            
+            # Build wheel
+            /opt/python/cp{python_ver}-cp{python_ver}/bin/python setup.py bdist_wheel
+            
+            # Repair wheel
+            auditwheel repair dist/*.whl --wheel-dir wheelhouse --plat manylinux_2_28_x86_64 \\
+              --exclude libcuda.so.1 --exclude libnvrtc.so.11 --exclude libcudart.so.11 \\
+              --exclude libnvrtc.so.12 --exclude libcudart.so.12 || cp dist/*.whl wheelhouse/
+            
+            # Change ownership back
+            chown -R $(id -u):$(id -g) wheelhouse
+          "
+          """
+          
+          run_cmd(docker_cmd)
+          EOF
+          
+          python3 build_single_wheel.py
+          
+      - name: Upload wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-cuda${{ matrix.cuda-version }}-py${{ matrix.python-version }}
+          path: tilelang/wheelhouse/*.whl
+
+  merge-and-release:
+    needs: build-wheels
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Download all wheels
+        uses: actions/download-artifact@v4
+        with:
+          path: all-wheels/
+          pattern: wheel-*
+          merge-multiple: true
+          
+      - name: List and prepare wheels
+        run: |
+          echo "🎉 All wheels built:"
+          ls -la all-wheels/
+          mkdir -p dist
+          cp all-wheels/*.whl dist/
+          
+          # Get version from first wheel
+          version=$(ls dist/*.whl | head -1 | grep -oP 'tilelang-\K[^-]+')
+          echo "TAG_VERSION=$version" >> $GITHUB_ENV
+          echo "Release version: $version"
+          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.TAG_VERSION }}
+          files: dist/*
+          token: ${{ secrets.GITHUB_TOKEN }}
+          prerelease: true
+          body: |
+            🚀 **TileLang Nightly Build** - ${{ env.TAG_VERSION }}
+            
+            Space-optimized build with:
+            - 🐧 **manylinux_2_28** (AlmaLinux 8, GCC-13)  
+            - 🐍 **Python 3.8-3.12** support
+            - 🎯 **CUDA 11.8, 12.1, 12.4** support
+            - ⚡ **C++17** standard compliance
+            - 💾 **Optimized for minimal disk usage**
+          
+      - name: Update wheel index
+        run: |
+          git clone https://github.com/tile-ai/whl.git tilelang-whl
+          python3 update_whl_index.py
+          
+      - name: Push wheel index
+        run: |
+          cd tilelang-whl
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "📦 Update nightly wheels ${{ env.TAG_VERSION }} (space-optimized)"
+            git push https://github-actions[bot]:${{ secrets.WHL_TOKEN }}@github.com/tile-ai/whl.git main
+          fi
+        env:
+          WHL_TOKEN: ${{ secrets.WHL_TOKEN }}
