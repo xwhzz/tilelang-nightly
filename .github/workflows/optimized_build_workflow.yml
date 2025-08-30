@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [self-hosted]
-        cuda-version: ["11.8", "12.1"]
+        cuda-version: ["12.1"]
         
     steps:
       - name: Checkout repository
@@ -107,8 +107,8 @@ jobs:
           CIBW_ENVIRONMENT: |
             CUDA_VERSION=${{ matrix.cuda-version }}
             CUDACXX=/usr/local/cuda-${{ matrix.cuda-version }}/bin/nvcc
-            CC=gcc-11
-            CXX=g++-11
+            CC=gcc
+            CXX=g++
             http_proxy=http://10.129.167.171:7897
             https_proxy=http://10.129.167.171:7897
             
@@ -117,7 +117,6 @@ jobs:
             # Update system and install dependencies
             export http_proxy=http://10.129.167.171:7897 https_proxy=http://10.129.167.171:7897
             dnf update -y
-            dnf install -y gcc-11 g++-11
 
             mkdir -p /etc
             echo "[global]" > /etc/pip.conf
