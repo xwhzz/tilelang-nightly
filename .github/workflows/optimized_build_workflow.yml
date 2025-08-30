@@ -120,18 +120,20 @@ jobs:
             dnf update -y
             dnf install -y wget curl
             
-            # Copy and install CUDA toolkit from mounted host cache
-            CUDA_CACHE_DIR="/host-cache"
+            # read github actions env
+            CUDA_CACHE_DIR=${{ env.CUDA_CACHE_DIR }}
+            echo "CUDA_CACHE_DIR=$CUDA_CACHE_DIR"
+
             if [[ "${{ matrix.cuda-version }}" == "11.8" ]]; then
               echo "📦 Installing CUDA 11.8 from cached installer..."
 
-              cp "/host/$CUDA_CACHE_DIR/cuda_11.8.0_520.61.05_linux.run" ./
+              cp "/host$CUDA_CACHE_DIR/cuda_11.8.0_520.61.05_linux.run" ./
               sh cuda_11.8.0_520.61.05_linux.run --toolkit --silent --override --no-man-page
               rm -f cuda_11.8.0_520.61.05_linux.run
 
             elif [[ "${{ matrix.cuda-version }}" == "12.1" ]]; then
               echo "📦 Installing CUDA 12.1 from cached installer..."
-              cp "/host/$CUDA_CACHE_DIR/cuda_12.1.0_530.30.02_linux.run" ./
+              cp "/host$CUDA_CACHE_DIR/cuda_12.1.0_530.30.02_linux.run" ./
               sh cuda_12.1.0_530.30.02_linux.run --toolkit --silent --override --no-man-page
               rm -f cuda_12.1.0_530.30.02_linux.run
             fi
