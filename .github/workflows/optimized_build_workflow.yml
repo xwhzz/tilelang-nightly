@@ -40,6 +40,35 @@ jobs:
             echo "BRANCH=main" >> $GITHUB_ENV
           fi
 
+      - name: Prepare CUDA toolkits cache
+        run: |
+          # Create cache directory on self-hosted runner
+          CUDA_CACHE_DIR="../../cache/cuda-toolkits-cache"
+          mkdir -p "$CUDA_CACHE_DIR"
+          echo "CUDA_CACHE_DIR=$CUDA_CACHE_DIR" >> $GITHUB_ENV
+          
+          # Download CUDA toolkits if not already cached
+          if [[ ! -f "$CUDA_CACHE_DIR/cuda_11.8.0_520.61.05_linux.run" ]]; then
+            echo "📥 Downloading CUDA 11.8 to cache..."
+            cd "$CUDA_CACHE_DIR"
+            wget -q https://developer.download.nvidia.com/compute/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run
+            echo "✅ CUDA 11.8 cached"
+          else
+            echo "🎯 CUDA 11.8 already cached"
+          fi
+          
+          if [[ ! -f "$CUDA_CACHE_DIR/cuda_12.1.0_530.30.02_linux.run" ]]; then
+            echo "📥 Downloading CUDA 12.1 to cache..."
+            cd "$CUDA_CACHE_DIR"
+            wget -q https://developer.download.nvidia.com/compute/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run
+            echo "✅ CUDA 12.1 cached"
+          else
+            echo "🎯 CUDA 12.1 already cached"
+          fi
+          
+          echo "📋 Cache contents:"
+          ls -la "$CUDA_CACHE_DIR"
+
       - name: Clone and prepare source
         run: |
           git clone -b ${{ env.BRANCH }} --recursive https://github.com/${{ env.REPO }}
@@ -72,6 +101,9 @@ jobs:
           # Skip 32-bit builds and musl
           CIBW_SKIP: "*-win32 *-manylinux_i686 *-musllinux*"
           
+          # Mount cache directory into Docker container
+          CIBW_DOCKER_RUN_ARGS: "-v ${{ env.CUDA_CACHE_DIR }}:/host-cache:ro"
+          
           # Set CUDA version for this matrix job
           CIBW_ENVIRONMENT: |
             CUDA_VERSION=${{ matrix.cuda-version }}
@@ -79,23 +111,42 @@ jobs:
             CC=gcc
             CXX=g++
             CXXFLAGS="-std=c++17"
+            http_proxy=http://10.129.167.171:7897
+            https_proxy=http://10.129.167.171:7897
             
-          # Install CUDA in the manylinux_2_28 environment
+          # Install CUDA in the manylinux_2_28 environment using cached toolkits
           CIBW_BEFORE_BUILD: |
             # Update system and install dependencies
             export http_proxy=http://10.129.167.171:7897 https_proxy=http://10.129.167.171:7897
             dnf update -y
             dnf install -y wget curl
             
-            # Install CUDA toolkit for the specified version (minimal install)
+            # Copy and install CUDA toolkit from mounted host cache
+            CUDA_CACHE_DIR="/host-cache"
             if [[ "${{ matrix.cuda-version }}" == "11.8" ]]; then
-              wget -q https://developer.download.nvidia.com/compute/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run
-              sh cuda_11.8.0_520.61.05_linux.run --toolkit --silent --override --no-man-page
-              rm -f cuda_11.8.0_520.61.05_linux.run
+              echo "📦 Installing CUDA 11.8 from cached installer..."
+              if [[ -f "$CUDA_CACHE_DIR/cuda_11.8.0_520.61.05_linux.run" ]]; then
+                cp "$CUDA_CACHE_DIR/cuda_11.8.0_520.61.05_linux.run" ./
+                sh cuda_11.8.0_520.61.05_linux.run --toolkit --silent --override --no-man-page
+                rm -f cuda_11.8.0_520.61.05_linux.run
+              else
+                echo "❌ CUDA 11.8 installer not found in cache, downloading..."
+                wget -q https://developer.download.nvidia.com/compute/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run
+                sh cuda_11.8.0_520.61.05_linux.run --toolkit --silent --override --no-man-page
+                rm -f cuda_11.8.0_520.61.05_linux.run
+              fi
             elif [[ "${{ matrix.cuda-version }}" == "12.1" ]]; then
-              wget -q https://developer.download.nvidia.com/compute/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run  
-              sh cuda_12.1.0_530.30.02_linux.run --toolkit --silent --override --no-man-page
-              rm -f cuda_12.1.0_530.30.02_linux.run
+              echo "📦 Installing CUDA 12.1 from cached installer..."
+              if [[ -f "$CUDA_CACHE_DIR/cuda_12.1.0_530.30.02_linux.run" ]]; then
+                cp "$CUDA_CACHE_DIR/cuda_12.1.0_530.30.02_linux.run" ./
+                sh cuda_12.1.0_530.30.02_linux.run --toolkit --silent --override --no-man-page
+                rm -f cuda_12.1.0_530.30.02_linux.run
+              else
+                echo "❌ CUDA 12.1 installer not found in cache, downloading..."
+                wget -q https://developer.download.nvidia.com/compute/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run
+                sh cuda_12.1.0_530.30.02_linux.run --toolkit --silent --override --no-man-page
+                rm -f cuda_12.1.0_530.30.02_linux.run
+              fi
             fi
                         
             # Set up CUDA environment
